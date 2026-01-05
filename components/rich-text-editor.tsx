@@ -1,6 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
+import UnderlineExtension from "@tiptap/extension-underline";
 import { Button } from "@/components/ui/button";
 import {
   Bold,
@@ -13,6 +16,7 @@ import {
   AlignRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 interface RichTextEditorProps {
   value: string;
@@ -27,116 +31,61 @@ export function RichTextEditor({
   placeholder,
   className,
 }: RichTextEditorProps) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
-    }
-  }, [value]);
-
-  const normalizeHTML = (html: string): string => {
-    // Create a temporary div to parse and normalize the HTML
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-
-    // Collect all text nodes that need processing
-    const walker = document.createTreeWalker(temp, NodeFilter.SHOW_TEXT, null);
-
-    const textNodesToProcess: { node: Text; parts: string[] }[] = [];
-    let node;
-    while ((node = walker.nextNode())) {
-      const textNode = node as Text;
-      if (textNode.textContent && textNode.textContent.includes("\n")) {
-        textNodesToProcess.push({
-          node: textNode,
-          parts: textNode.textContent.split("\n"),
-        });
-      }
-    }
-
-    // Process text nodes to replace newlines with <br> tags
-    textNodesToProcess.forEach(({ node: textNode, parts }) => {
-      const parent = textNode.parentNode;
-      if (parent) {
-        // Insert text parts and <br> tags
-        parts.forEach((part, index) => {
-          if (part) {
-            parent.insertBefore(document.createTextNode(part), textNode);
-          }
-          if (index < parts.length - 1) {
-            const br = document.createElement("br");
-            parent.insertBefore(br, textNode);
-          }
-        });
-        parent.removeChild(textNode);
-      }
-    });
-
-    // Convert empty block elements (div/p) that represent line breaks to <br> tags
-    // This helps with email compatibility while preserving formatting
-    const blockElements = Array.from(temp.querySelectorAll("div, p"));
-    blockElements.forEach((block) => {
-      const isEmpty = !block.textContent || block.textContent.trim() === "";
-      // Only convert empty blocks that likely represent line breaks
-      if (isEmpty && block.parentNode) {
-        const br = document.createElement("br");
-        block.parentNode.replaceChild(br, block);
-      }
-    });
-
-    return temp.innerHTML;
-  };
-
-  const handleInput = () => {
-    if (editorRef.current) {
-      let html = editorRef.current.innerHTML;
-      // Normalize the HTML to ensure line breaks are preserved
-      html = normalizeHTML(html);
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        // Disable the default hard break behavior, we'll handle it
+        hardBreak: false,
+        // Ensure lists are enabled
+        bulletList: {
+          HTMLAttributes: {
+            class: "list-disc",
+          },
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: "list-decimal",
+          },
+        },
+        listItem: {
+          HTMLAttributes: {
+            class: "list-item",
+          },
+        },
+      }),
+      UnderlineExtension,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+        defaultAlignment: "left",
+      }),
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      // Get HTML content and ensure line breaks are preserved
+      const html = editor.getHTML();
       onChange(html);
+    },
+    editorProps: {
+      attributes: {
+        class: cn(
+          "prose prose-sm dark:prose-invert max-w-none min-h-[200px] p-4 focus:outline-none",
+          "prose-p:my-1 prose-headings:my-2"
+        ),
+      },
+    },
+  });
+
+  // Update editor content when value prop changes externally
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, { emitUpdate: false });
     }
-  };
+  }, [value, editor]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      // Prevent default behavior
-      e.preventDefault();
-
-      // Insert a <br> tag and move cursor after it
-      if (editorRef.current) {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          const br = document.createElement("br");
-          range.deleteContents();
-          range.insertNode(br);
-
-          // Move cursor after the <br>
-          range.setStartAfter(br);
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        } else {
-          // Fallback: use execCommand
-          document.execCommand("insertLineBreak", false);
-        }
-
-        // Trigger input event to update the value
-        handleInput();
-      }
-    }
-  };
-
-  const execCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    handleInput();
-  };
-
-  const isCommandActive = (command: string): boolean => {
-    return document.queryCommandState(command);
-  };
+  if (!editor) {
+    return null;
+  }
 
   return (
     <div className={cn("border rounded-md bg-background", className)}>
@@ -146,8 +95,8 @@ export function RichTextEditor({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn("h-7 w-7", isCommandActive("bold") && "bg-accent")}
-          onClick={() => execCommand("bold")}
+          className={cn("h-7 w-7", editor.isActive("bold") && "bg-accent")}
+          onClick={() => editor.chain().focus().toggleBold().run()}
           title="Bold"
         >
           <Bold className="h-4 w-4" />
@@ -156,8 +105,8 @@ export function RichTextEditor({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn("h-7 w-7", isCommandActive("italic") && "bg-accent")}
-          onClick={() => execCommand("italic")}
+          className={cn("h-7 w-7", editor.isActive("italic") && "bg-accent")}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
           title="Italic"
         >
           <Italic className="h-4 w-4" />
@@ -166,8 +115,8 @@ export function RichTextEditor({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn("h-7 w-7", isCommandActive("underline") && "bg-accent")}
-          onClick={() => execCommand("underline")}
+          className={cn("h-7 w-7", editor.isActive("underline") && "bg-accent")}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
           title="Underline"
         >
           <Underline className="h-4 w-4" />
@@ -179,9 +128,21 @@ export function RichTextEditor({
           size="icon"
           className={cn(
             "h-7 w-7",
-            isCommandActive("insertUnorderedList") && "bg-accent"
+            editor.isActive("bulletList") && "bg-accent"
           )}
-          onClick={() => execCommand("insertUnorderedList")}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (editor.isActive("bulletList")) {
+              editor.chain().focus().toggleBulletList().run();
+            } else {
+              // If ordered list is active, toggle it off first
+              if (editor.isActive("orderedList")) {
+                editor.chain().focus().toggleOrderedList().run();
+              }
+              editor.chain().focus().toggleBulletList().run();
+            }
+          }}
           title="Bullet List"
         >
           <List className="h-4 w-4" />
@@ -192,9 +153,21 @@ export function RichTextEditor({
           size="icon"
           className={cn(
             "h-7 w-7",
-            isCommandActive("insertOrderedList") && "bg-accent"
+            editor.isActive("orderedList") && "bg-accent"
           )}
-          onClick={() => execCommand("insertOrderedList")}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (editor.isActive("orderedList")) {
+              editor.chain().focus().toggleOrderedList().run();
+            } else {
+              // If bullet list is active, toggle it off first
+              if (editor.isActive("bulletList")) {
+                editor.chain().focus().toggleBulletList().run();
+              }
+              editor.chain().focus().toggleOrderedList().run();
+            }
+          }}
           title="Numbered List"
         >
           <ListOrdered className="h-4 w-4" />
@@ -206,9 +179,9 @@ export function RichTextEditor({
           size="icon"
           className={cn(
             "h-7 w-7",
-            isCommandActive("justifyLeft") && "bg-accent"
+            editor.isActive({ textAlign: "left" }) && "bg-accent"
           )}
-          onClick={() => execCommand("justifyLeft")}
+          onClick={() => editor.chain().focus().setTextAlign("left").run()}
           title="Align Left"
         >
           <AlignLeft className="h-4 w-4" />
@@ -219,9 +192,9 @@ export function RichTextEditor({
           size="icon"
           className={cn(
             "h-7 w-7",
-            isCommandActive("justifyCenter") && "bg-accent"
+            editor.isActive({ textAlign: "center" }) && "bg-accent"
           )}
-          onClick={() => execCommand("justifyCenter")}
+          onClick={() => editor.chain().focus().setTextAlign("center").run()}
           title="Align Center"
         >
           <AlignCenter className="h-4 w-4" />
@@ -232,9 +205,9 @@ export function RichTextEditor({
           size="icon"
           className={cn(
             "h-7 w-7",
-            isCommandActive("justifyRight") && "bg-accent"
+            editor.isActive({ textAlign: "right" }) && "bg-accent"
           )}
-          onClick={() => execCommand("justifyRight")}
+          onClick={() => editor.chain().focus().setTextAlign("right").run()}
           title="Align Right"
         >
           <AlignRight className="h-4 w-4" />
@@ -242,25 +215,15 @@ export function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <div
-        ref={editorRef}
-        contentEditable
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className={cn(
-          "min-h-[200px] p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
-          !value && !isFocused && "text-muted-foreground",
-          "prose prose-sm dark:prose-invert max-w-none"
-        )}
-        style={{
-          wordBreak: "break-word",
-          whiteSpace: "pre-wrap",
-        }}
-        data-placeholder={placeholder || "Compose your message..."}
-        suppressContentEditableWarning
-      />
+      <div className="min-h-[200px]">
+        <EditorContent
+          editor={editor}
+          className={cn(
+            !editor.getText() &&
+              "before:content-[attr(data-placeholder)] before:absolute before:text-muted-foreground before:pointer-events-none"
+          )}
+        />
+      </div>
     </div>
   );
 }
