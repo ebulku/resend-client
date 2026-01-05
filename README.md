@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Resend Email Client
 
-## Getting Started
+> **⚠️ Important Notice:** This is **not** an official repository from Resend. This is a third-party project built for testing and educational purposes only. Please ensure that your usage complies with Resend's Terms of Service and API usage policies. Use at your own risk.
 
-First, run the development server:
+A beautiful and modern email client built with Next.js and shadcn/ui for managing emails using the Resend API. Designed to look and feel like a traditional email client with a sidebar navigation, inbox, sent folder, and compose functionality.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+![Screenshot](./public/screenshot.png)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Email Client UI** - Beautiful sidebar-based interface similar to Gmail/Outlook
+- **Settings Management** - Configure your Resend API key directly in the app (stored in localStorage)
+- **Send Emails** - Send HTML or plain text emails to single or multiple recipients
+- **View Sent Emails** - Browse through all your sent emails with status information
+- **View Received Emails** - View emails received via webhooks (requires webhook setup)
+- **Email Detail View** - Click on any email to view full details
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Prerequisites
 
-## Learn More
+- Node.js 18+
+- pnpm (package manager)
+- Resend API key ([Get one here](https://resend.com/api-keys))
 
-To learn more about Next.js, take a look at the following resources:
+## Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Install dependencies:**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   pnpm install
+   ```
 
-## Deploy on Vercel
+2. **Run the development server:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   pnpm dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Open your browser:**
+
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+4. **Configure your API key:**
+   - Click the Settings icon in the top right of the sidebar
+   - Enter your Resend API key from [Resend Dashboard](https://resend.com/api-keys)
+   - Optionally set a default "From" email address
+   - Click "Save"
+
+## License
+
+MIT
