@@ -186,7 +186,7 @@ export function ComposePanel({
       {/* Side Panel */}
       <div
         className={cn(
-          "fixed right-0 top-0 h-full bg-background border-l shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out",
+          "fixed right-0 top-0 h-full bg-background border-l shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out overflow-hidden",
           minimized ? "w-80" : "w-full md:w-[600px]",
           open ? "translate-x-0" : "translate-x-full"
         )}
@@ -228,9 +228,9 @@ export function ComposePanel({
           <>
             <form
               onSubmit={handleSubmit}
-              className="flex flex-col flex-1 min-h-0"
+              className="flex flex-col flex-1 min-h-0 overflow-hidden"
             >
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4 space-y-4">
                   <div className="space-y-2">
                     <label
