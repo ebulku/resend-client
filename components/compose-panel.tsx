@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { getSettings } from '@/lib/settings';
-import { Send, X, Minimize2 } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import { RichTextEditor } from '@/components/rich-text-editor';
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { getSettings } from "@/lib/settings";
+import { Send, X, Minimize2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { RichTextEditor } from "@/components/rich-text-editor";
 
 interface ComposePanelProps {
   open: boolean;
@@ -26,15 +26,23 @@ interface ComposePanelProps {
   onSent?: () => void;
 }
 
-export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePanelProps) {
+export function ComposePanel({
+  open,
+  onOpenChange,
+  replyTo,
+  onSent,
+}: ComposePanelProps) {
   const [formData, setFormData] = useState({
-    to: '',
-    subject: '',
-    html: '',
-    from: '',
+    to: "",
+    subject: "",
+    html: "",
+    from: "",
   });
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
   const [minimized, setMinimized] = useState(false);
 
   // Initialize form when panel opens or replyTo changes
@@ -42,34 +50,24 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
     if (open) {
       const settings = getSettings();
       if (replyTo) {
-        // Pre-fill reply fields with original email content
-        const originalDate = replyTo.originalDate || new Date().toLocaleString();
-        const originalFrom = replyTo.originalFrom || replyTo.from;
-        
-        const quotedHtml = replyTo.originalHtml
-          ? '<p><br></p><div style="border-left: 3px solid #ccc; padding-left: 1rem; margin-top: 1rem; color: #666;">' +
-            '<p style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #999;">' +
-            'On ' + originalDate + ', ' + originalFrom + ' wrote:' +
-            '</p>' +
-            '<div style="margin-top: 0.5rem;">' +
-            replyTo.originalHtml +
-            '</div>' +
-            '</div>'
-          : '<p><br></p>';
-
+        // Pre-fill reply fields, but DO NOT inject the original HTML into the editor.
+        // We will append the original email HTML at send-time so it stays intact
+        // and is not modified by the rich-text editor.
         setFormData({
-          to: Array.isArray(replyTo.to) ? replyTo.to.join(', ') : replyTo.to,
-          subject: replyTo.subject.startsWith('Re: ') ? replyTo.subject : `Re: ${replyTo.subject}`,
-          html: quotedHtml,
-          from: settings.fromEmail || '',
+          to: Array.isArray(replyTo.to) ? replyTo.to.join(", ") : replyTo.to,
+          subject: replyTo.subject.startsWith("Re: ")
+            ? replyTo.subject
+            : `Re: ${replyTo.subject}`,
+          html: "",
+          from: settings.fromEmail || "",
         });
       } else {
         // Reset for new email
         setFormData({
-          to: '',
-          subject: '',
-          html: '',
-          from: settings.fromEmail || '',
+          to: "",
+          subject: "",
+          html: "",
+          from: settings.fromEmail || "",
         });
       }
       setResult(null);
@@ -85,21 +83,52 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
     try {
       const settings = getSettings();
       if (!settings.apiKey) {
-        setResult({ success: false, message: 'Please configure your API key in settings' });
+        setResult({
+          success: false,
+          message: "Please configure your API key in settings",
+        });
         setLoading(false);
         return;
       }
 
-      const response = await fetch('/api/emails/send', {
-        method: 'POST',
+      // Build final HTML body.
+      // Start with the content from the editor (the new reply text).
+      let finalHtml = formData.html || "";
+
+      // If replying to an email with original HTML, append it as a quoted block.
+      if (replyTo?.originalHtml) {
+        const originalDate =
+          replyTo.originalDate || new Date().toLocaleString();
+        const originalFrom = replyTo.originalFrom || replyTo.from;
+
+        const quotedBlock =
+          "<br><br>" +
+          '<blockquote style="border-left: 3px solid #ccc; padding-left: 1rem; margin: 1rem 0; color: #666;" data-quoted-email="true">' +
+          '<p style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #999;">' +
+          "On " +
+          originalDate +
+          ", " +
+          originalFrom +
+          " wrote:" +
+          "</p>" +
+          replyTo.originalHtml +
+          "</blockquote>";
+
+        finalHtml += quotedBlock;
+      }
+
+      const response = await fetch("/api/emails/send", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          to: formData.to.split(',').map((email) => email.trim()),
+          to: formData.to.split(",").map((email) => email.trim()),
           subject: formData.subject,
-          html: formData.html || undefined,
-          text: formData.html ? formData.html.replace(/<[^>]*>/g, '').trim() : undefined,
+          html: finalHtml || undefined,
+          text: finalHtml
+            ? finalHtml.replace(/<[^>]*>/g, "").trim()
+            : undefined,
           from: formData.from || settings.fromEmail || undefined,
           apiKey: settings.apiKey,
           replyTo: replyTo?.messageId,
@@ -109,14 +138,14 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
       const data = await response.json();
 
       if (data.success) {
-        setResult({ success: true, message: 'Email sent successfully!' });
+        setResult({ success: true, message: "Email sent successfully!" });
         // Reset form
         const settings = getSettings();
         setFormData({
-          to: '',
-          subject: '',
-          html: '',
-          from: settings.fromEmail || '',
+          to: "",
+          subject: "",
+          html: "",
+          from: settings.fromEmail || "",
         });
         // Close panel after a short delay
         setTimeout(() => {
@@ -124,10 +153,17 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
           onSent?.();
         }, 1500);
       } else {
-        setResult({ success: false, message: data.error || 'Failed to send email' });
+        setResult({
+          success: false,
+          message: data.error || "Failed to send email",
+        });
       }
-    } catch (error: any) {
-      setResult({ success: false, message: error.message || 'An error occurred' });
+    } catch (error) {
+      const err = error as Error;
+      setResult({
+        success: false,
+        message: err.message || "An error occurred",
+      });
     } finally {
       setLoading(false);
     }
@@ -146,7 +182,7 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
         className="fixed inset-0 bg-black/20 z-40 transition-opacity"
         onClick={() => onOpenChange(false)}
       />
-      
+
       {/* Side Panel */}
       <div
         className={cn(
@@ -159,11 +195,12 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
         <div className="border-b bg-card/50 backdrop-blur-sm p-4 flex items-center justify-between shrink-0">
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold truncate">
-              {replyTo ? 'Reply' : 'New Message'}
+              {replyTo ? "Reply" : "New Message"}
             </h2>
             {replyTo && (
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                To: {Array.isArray(replyTo.to) ? replyTo.to.join(', ') : replyTo.to}
+                To:{" "}
+                {Array.isArray(replyTo.to) ? replyTo.to.join(", ") : replyTo.to}
               </p>
             )}
           </div>
@@ -189,11 +226,17 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
 
         {!minimized && (
           <>
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col flex-1 min-h-0"
+            >
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="from" className="text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="from"
+                      className="text-sm font-medium text-muted-foreground"
+                    >
                       From
                     </label>
                     <Input
@@ -201,13 +244,16 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
                       type="email"
                       placeholder="sender@example.com"
                       value={formData.from}
-                      onChange={(e) => handleChange('from', e.target.value)}
+                      onChange={(e) => handleChange("from", e.target.value)}
                       className="bg-background"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="to" className="text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="to"
+                      className="text-sm font-medium text-muted-foreground"
+                    >
                       To <span className="text-destructive">*</span>
                     </label>
                     <Input
@@ -215,14 +261,17 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
                       type="text"
                       placeholder="recipient@example.com"
                       value={formData.to}
-                      onChange={(e) => handleChange('to', e.target.value)}
+                      onChange={(e) => handleChange("to", e.target.value)}
                       required
                       className="bg-background"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="subject" className="text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="subject"
+                      className="text-sm font-medium text-muted-foreground"
+                    >
                       Subject <span className="text-destructive">*</span>
                     </label>
                     <Input
@@ -230,33 +279,57 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
                       type="text"
                       placeholder="Email subject"
                       value={formData.subject}
-                      onChange={(e) => handleChange('subject', e.target.value)}
+                      onChange={(e) => handleChange("subject", e.target.value)}
                       required
                       className="bg-background"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="html" className="text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="html"
+                      className="text-sm font-medium text-muted-foreground"
+                    >
                       Message
                     </label>
                     <RichTextEditor
                       value={formData.html}
-                      onChange={(value) => handleChange('html', value)}
+                      onChange={(value) => handleChange("html", value)}
                       placeholder="Compose your message..."
                     />
                   </div>
 
+                  {/* Read-only preview of the previous email when replying */}
+                  {replyTo?.originalHtml && (
+                    <div className="mt-4 text-xs text-muted-foreground">
+                      <div className="border-l-2 border-border pl-3 space-y-2">
+                        <p className="font-medium">
+                          On{" "}
+                          {replyTo.originalDate || new Date().toLocaleString()},{" "}
+                          {replyTo.originalFrom || replyTo.from} wrote:
+                        </p>
+                        <div
+                          className="prose prose-sm dark:prose-invert max-w-none"
+                          dangerouslySetInnerHTML={{
+                            __html: replyTo.originalHtml,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {result && (
                     <div className="flex items-center gap-2 p-3 rounded-md bg-muted border">
-                      <Badge variant={result.success ? 'default' : 'destructive'}>
-                        {result.success ? 'Success' : 'Error'}
+                      <Badge
+                        variant={result.success ? "default" : "destructive"}
+                      >
+                        {result.success ? "Success" : "Error"}
                       </Badge>
                       <span
                         className={
                           result.success
-                            ? 'text-green-600 dark:text-green-400 text-sm'
-                            : 'text-destructive text-sm'
+                            ? "text-green-600 dark:text-green-400 text-sm"
+                            : "text-destructive text-sm"
                         }
                       >
                         {result.message}
@@ -277,7 +350,7 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
                 </Button>
                 <Button type="submit" disabled={loading}>
                   <Send className="h-4 w-4 mr-2" />
-                  {loading ? 'Sending...' : 'Send'}
+                  {loading ? "Sending..." : "Send"}
                 </Button>
               </div>
             </form>
@@ -287,4 +360,3 @@ export function ComposePanel({ open, onOpenChange, replyTo, onSent }: ComposePan
     </>
   );
 }
-
