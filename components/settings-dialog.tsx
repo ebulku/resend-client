@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,15 +16,17 @@ import { Settings as SettingsIcon } from 'lucide-react';
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
-  const [settings, setSettings] = useState<Settings>({ apiKey: '', fromEmail: '' });
+  const [settings, setSettings] = useState<Settings>(() => getSettings());
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (open) {
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (newOpen) {
+      // Update settings when dialog opens
       setSettings(getSettings());
       setSaved(false);
     }
-  }, [open]);
+  };
 
   const handleSave = () => {
     saveSettings(settings);
@@ -40,7 +42,7 @@ export function SettingsDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-9 w-9">
           <SettingsIcon className="h-4 w-4" />

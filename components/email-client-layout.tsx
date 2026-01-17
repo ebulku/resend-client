@@ -24,7 +24,8 @@ interface EmailClientLayoutProps {
 
 export function EmailClientLayout({ children, activeView, onViewChange }: EmailClientLayoutProps) {
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Use typeof window check directly to avoid setState in effect
+  const mounted = typeof window !== 'undefined';
   const router = useRouter();
   const pathname = usePathname();
   const [composeOpen, setComposeOpen] = useState(false);
@@ -44,7 +45,6 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
 
   // Check API key on mount and when settings might change
   useEffect(() => {
-    setMounted(true);
     const checkApiKey = () => {
       setApiKeyConfigured(hasApiKey());
     };
@@ -70,7 +70,7 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
       <aside className="hidden md:flex w-64 border-r bg-sidebar flex-col shadow-sm">
         <div className="p-4 border-b bg-sidebar/50 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
               Resend Client
             </h1>
             <div className="flex items-center gap-1">
@@ -114,7 +114,7 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
             <Separator className="my-3" />
             <Button
               variant="ghost"
-              className="w-full justify-start transition-all hover:bg-sidebar-accent/50 bg-primary/10 hover:bg-primary/20 text-primary font-medium"
+              className="w-full justify-start transition-all bg-primary/10 hover:bg-primary/20 text-primary font-medium"
               onClick={handleCompose}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -135,7 +135,7 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-lg font-bold bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Resend Client
           </h1>
         </div>
@@ -155,7 +155,7 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
           <div className="fixed top-0 left-0 h-full w-64 bg-sidebar border-r shadow-xl z-50 md:hidden flex flex-col">
             <div className="p-4 border-b bg-sidebar/50 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                   Resend Client
                 </h1>
                 <Button
@@ -208,7 +208,7 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
                 <Separator className="my-3" />
                 <Button
                   variant="ghost"
-                  className="w-full justify-start transition-all hover:bg-sidebar-accent/50 bg-primary/10 hover:bg-primary/20 text-primary font-medium"
+                  className="w-full justify-start transition-all bg-primary/10 hover:bg-primary/20 text-primary font-medium"
                   onClick={() => {
                     handleCompose();
                     setMobileMenuOpen(false);

@@ -111,8 +111,9 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
       } else {
         setResult({ success: false, message: data.error || 'Failed to send email' });
       }
-    } catch (error: any) {
-      setResult({ success: false, message: error.message || 'An error occurred' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      setResult({ success: false, message: errorMessage });
     } finally {
       setLoading(false);
     }

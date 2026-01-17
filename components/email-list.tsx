@@ -91,8 +91,9 @@ export function EmailList({ type, onEmailSelect }: EmailListProps) {
       } else {
         setError(result.error || 'Failed to fetch emails');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     } finally {
       setLoading(false);
       fetchingRef.current = false;
@@ -168,7 +169,7 @@ export function EmailList({ type, onEmailSelect }: EmailListProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
         <p className="text-destructive text-center">{error}</p>
-        <Button onClick={fetchEmails} variant="outline">
+        <Button onClick={() => fetchEmails(true)} variant="outline">
           Retry
         </Button>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,20 +39,7 @@ export function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
   const fetchingRef = useRef(false);
   const currentEmailIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (email && email.id !== currentEmailIdRef.current) {
-      currentEmailIdRef.current = email.id;
-      // Set initial email immediately
-      setFullEmail(email);
-      // Fetch full email details including content
-      fetchEmailDetails(email.id);
-    } else if (!email) {
-      currentEmailIdRef.current = null;
-      setFullEmail(null);
-    }
-  }, [email?.id]);
-
-  const fetchEmailDetails = async (emailId: string, forceRefresh = false) => {
+  const fetchEmailDetails = useCallback(async (emailId: string, forceRefresh = false) => {
     // Prevent duplicate requests
     if (fetchingRef.current && !forceRefresh) {
       return;
@@ -112,8 +99,9 @@ export function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
           setFullEmail(email);
         }
       }
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
       // Fallback to the email from list if fetch fails
       if (email) {
         setFullEmail(email);
@@ -122,7 +110,22 @@ export function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
       setLoading(false);
       fetchingRef.current = false;
     }
-  };
+  }, [email]);
+  
+  useEffect(() => {
+    if (email && email.id !== currentEmailIdRef.current) {
+      currentEmailIdRef.current = email.id;
+      // Set initial email immediately
+      setFullEmail(email);
+      // Fetch full email details including content
+      fetchEmailDetails(email.id);
+    } else if (!email) {
+      currentEmailIdRef.current = null;
+      setFullEmail(null);
+    }
+  }, [email, email?.id, fetchEmailDetails]);
+
+
 
   if (!email) {
     return (

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { to, subject, html, text, from, apiKey, replyTo } = body;
+    const { to, subject, html, text, from, apiKey} = body;
 
     const apiKeyToUse = apiKey || process.env.RESEND_API_KEY;
 
@@ -24,18 +24,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const emailOptions: any = {
+    const emailOptions = {
       from: from || process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
       to: Array.isArray(to) ? to : [to],
       subject,
       html: html || undefined,
       text: text || undefined,
+      ...(body.replyTo && { reply_to: body.replyTo }),
     };
-
-    // Add reply-to header if provided
-    if (body.replyTo) {
-      emailOptions.reply_to = body.replyTo;
-    }
 
     const { data, error } = await resend.emails.send(emailOptions);
 
@@ -44,9 +40,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to send email";
     return NextResponse.json(
-      { error: error.message || "Failed to send email" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
