@@ -19,13 +19,14 @@ export async function GET(
 
     const resend = new Resend(apiKey);
 
-    const { data: emailData, error: emailError } =
-      await resend.emails.receiving.get(id);
+    // Fetch email details
+    const { data: emailData, error: emailError } = await resend.emails.get(id);
 
     if (emailError) {
       return NextResponse.json({ error: emailError.message }, { status: 400 });
     }
 
+    // Fetch attachments using the specific method
     let attachments: unknown[] = [];
     try {
       const { data: attachmentsData } = await resend.emails.attachments.list({
@@ -33,14 +34,10 @@ export async function GET(
       });
 
       if (attachmentsData && attachmentsData.data) {
-        // Map attachments to match InboundAttachment type requirements (filename: string | null)
-        attachments = attachmentsData.data.map((att) => ({
-          ...att,
-          filename: att.filename ?? null,
-        }));
+        attachments = attachmentsData.data;
       }
     } catch (attachError) {
-      console.error("Failed to fetch received attachments:", attachError);
+      console.error("Failed to fetch attachments:", attachError);
     }
 
     return NextResponse.json(
@@ -55,7 +52,7 @@ export async function GET(
     );
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch received email";
+      error instanceof Error ? error.message : "Failed to fetch sent email";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

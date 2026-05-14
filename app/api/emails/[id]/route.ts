@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -13,7 +13,7 @@ export async function GET(
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required. Please configure it in settings." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 

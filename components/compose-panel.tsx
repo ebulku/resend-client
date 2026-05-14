@@ -50,25 +50,30 @@ export function ComposePanel({
     if (open) {
       const settings = getSettings();
       if (replyTo) {
-        // Pre-fill reply fields, but DO NOT inject the original HTML into the editor.
-        // We will append the original email HTML at send-time so it stays intact
-        // and is not modified by the rich-text editor.
-        setFormData({
-          to: Array.isArray(replyTo.to) ? replyTo.to.join(", ") : replyTo.to,
-          subject: replyTo.subject.startsWith("Re: ")
-            ? replyTo.subject
-            : `Re: ${replyTo.subject}`,
-          html: "",
-          from: settings.fromEmail || "",
-        });
+        // Defer state update to avoid synchronous setState warning
+        const timer = setTimeout(() => {
+          setFormData({
+            to: Array.isArray(replyTo.to) ? replyTo.to.join(", ") : replyTo.to,
+            subject: replyTo.subject.startsWith("Re: ")
+              ? replyTo.subject
+              : `Re: ${replyTo.subject}`,
+            html: "",
+            from: settings.fromEmail || "",
+          });
+        }, 0);
+        return () => clearTimeout(timer);
       } else {
         // Reset for new email
-        setFormData({
-          to: "",
-          subject: "",
-          html: "",
-          from: settings.fromEmail || "",
-        });
+        // Defer state update to avoid synchronous setState warning
+        const timer = setTimeout(() => {
+          setFormData({
+            to: "",
+            subject: "",
+            html: "",
+            from: settings.fromEmail || "",
+          });
+        }, 0);
+        return () => clearTimeout(timer);
       }
       setResult(null);
       setMinimized(false);
@@ -188,7 +193,7 @@ export function ComposePanel({
         className={cn(
           "fixed right-0 top-0 h-full bg-background border-l shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out overflow-hidden",
           minimized ? "w-80" : "w-full md:w-[600px]",
-          open ? "translate-x-0" : "translate-x-full"
+          open ? "translate-x-0" : "translate-x-full",
         )}
       >
         {/* Header */}

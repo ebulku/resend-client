@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { getSettings } from '@/lib/settings';
-import { Send, X } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { RichTextEditor } from '@/components/rich-text-editor';
+} from "@/components/ui/dialog";
+import { getSettings } from "@/lib/settings";
+import { Send, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RichTextEditor } from "@/components/rich-text-editor";
 
 interface ComposeModalProps {
   open: boolean;
@@ -28,36 +28,53 @@ interface ComposeModalProps {
   onSent?: () => void;
 }
 
-export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeModalProps) {
+export function ComposeModal({
+  open,
+  onOpenChange,
+  replyTo,
+  onSent,
+}: ComposeModalProps) {
   const [formData, setFormData] = useState({
-    to: '',
-    subject: '',
-    html: '',
-    from: '',
+    to: "",
+    subject: "",
+    html: "",
+    from: "",
   });
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // Initialize form when modal opens or replyTo changes
   useEffect(() => {
     if (open) {
       const settings = getSettings();
       if (replyTo) {
-        // Pre-fill reply fields
-        setFormData({
-          to: Array.isArray(replyTo.to) ? replyTo.to.join(', ') : replyTo.to,
-          subject: replyTo.subject.startsWith('Re: ') ? replyTo.subject : `Re: ${replyTo.subject}`,
-          html: '',
-          from: settings.fromEmail || '',
-        });
+        // Defer state update to avoid synchronous setState warning
+        const timer = setTimeout(() => {
+          setFormData({
+            to: Array.isArray(replyTo.to) ? replyTo.to.join(", ") : replyTo.to,
+            subject: replyTo.subject.startsWith("Re: ")
+              ? replyTo.subject
+              : `Re: ${replyTo.subject}`,
+            html: "",
+            from: settings.fromEmail || "",
+          });
+        }, 0);
+        return () => clearTimeout(timer);
       } else {
         // Reset for new email
-        setFormData({
-          to: '',
-          subject: '',
-          html: '',
-          from: settings.fromEmail || '',
-        });
+        // Defer state update to avoid synchronous setState warning
+        const timer = setTimeout(() => {
+          setFormData({
+            to: "",
+            subject: "",
+            html: "",
+            from: settings.fromEmail || "",
+          });
+        }, 0);
+        return () => clearTimeout(timer);
       }
       setResult(null);
     }
@@ -71,21 +88,26 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
     try {
       const settings = getSettings();
       if (!settings.apiKey) {
-        setResult({ success: false, message: 'Please configure your API key in settings' });
+        setResult({
+          success: false,
+          message: "Please configure your API key in settings",
+        });
         setLoading(false);
         return;
       }
 
-      const response = await fetch('/api/emails/send', {
-        method: 'POST',
+      const response = await fetch("/api/emails/send", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          to: formData.to.split(',').map((email) => email.trim()),
+          to: formData.to.split(",").map((email) => email.trim()),
           subject: formData.subject,
           html: formData.html || undefined,
-          text: formData.html ? formData.html.replace(/<[^>]*>/g, '').trim() : undefined,
+          text: formData.html
+            ? formData.html.replace(/<[^>]*>/g, "").trim()
+            : undefined,
           from: formData.from || settings.fromEmail || undefined,
           apiKey: settings.apiKey,
           replyTo: replyTo?.messageId,
@@ -95,13 +117,13 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
       const data = await response.json();
 
       if (data.success) {
-        setResult({ success: true, message: 'Email sent successfully!' });
+        setResult({ success: true, message: "Email sent successfully!" });
         // Reset form
         setFormData({
-          to: '',
-          subject: '',
-          html: '',
-          from: settings.fromEmail || '',
+          to: "",
+          subject: "",
+          html: "",
+          from: settings.fromEmail || "",
         });
         // Close modal after a short delay
         setTimeout(() => {
@@ -109,10 +131,14 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
           onSent?.();
         }, 1500);
       } else {
-        setResult({ success: false, message: data.error || 'Failed to send email' });
+        setResult({
+          success: false,
+          message: data.error || "Failed to send email",
+        });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
       setResult({ success: false, message: errorMessage });
     } finally {
       setLoading(false);
@@ -130,10 +156,12 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-xl font-semibold">
-                {replyTo ? 'Reply' : 'New Message'}
+                {replyTo ? "Reply" : "New Message"}
               </DialogTitle>
               <DialogDescription className="mt-1">
-                {replyTo ? 'Reply to this email' : 'Compose and send a new email'}
+                {replyTo
+                  ? "Reply to this email"
+                  : "Compose and send a new email"}
               </DialogDescription>
             </div>
             <Button
@@ -159,7 +187,7 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
                   type="email"
                   placeholder="sender@example.com"
                   value={formData.from}
-                  onChange={(e) => handleChange('from', e.target.value)}
+                  onChange={(e) => handleChange("from", e.target.value)}
                 />
               </div>
 
@@ -172,7 +200,7 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
                   type="text"
                   placeholder="recipient@example.com"
                   value={formData.to}
-                  onChange={(e) => handleChange('to', e.target.value)}
+                  onChange={(e) => handleChange("to", e.target.value)}
                   required
                 />
               </div>
@@ -186,7 +214,7 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
                   type="text"
                   placeholder="Email subject"
                   value={formData.subject}
-                  onChange={(e) => handleChange('subject', e.target.value)}
+                  onChange={(e) => handleChange("subject", e.target.value)}
                   required
                 />
               </div>
@@ -197,21 +225,21 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
                 </label>
                 <RichTextEditor
                   value={formData.html}
-                  onChange={(value) => handleChange('html', value)}
+                  onChange={(value) => handleChange("html", value)}
                   placeholder="Compose your message..."
                 />
               </div>
 
               {result && (
                 <div className="flex items-center gap-2 p-3 rounded-md bg-muted">
-                  <Badge variant={result.success ? 'default' : 'destructive'}>
-                    {result.success ? 'Success' : 'Error'}
+                  <Badge variant={result.success ? "default" : "destructive"}>
+                    {result.success ? "Success" : "Error"}
                   </Badge>
                   <span
                     className={
                       result.success
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-destructive'
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-destructive"
                     }
                   >
                     {result.message}
@@ -232,7 +260,7 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
             </Button>
             <Button type="submit" disabled={loading}>
               <Send className="h-4 w-4 mr-2" />
-              {loading ? 'Sending...' : 'Send'}
+              {loading ? "Sending..." : "Send"}
             </Button>
           </div>
         </form>
@@ -240,4 +268,3 @@ export function ComposeModal({ open, onOpenChange, replyTo, onSent }: ComposeMod
     </Dialog>
   );
 }
-

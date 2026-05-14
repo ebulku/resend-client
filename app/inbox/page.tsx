@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { EmailClientLayout } from '@/components/email-client-layout';
-import { EmailList } from '@/components/email-list';
-import { EmailDetail } from '@/components/email-detail';
-import { ComposePanel } from '@/components/compose-panel';
+import { useState } from "react";
+import { EmailClientLayout } from "@/components/email-client-layout";
+import { EmailList } from "@/components/email-list";
+import { EmailDetail } from "@/components/email-detail";
+import { ComposePanel } from "@/components/compose-panel";
 
 interface Email {
   id: string;
@@ -58,8 +58,10 @@ export default function InboxPage() {
           }}
           replyTo={{
             to: replyEmail.from ? [replyEmail.from] : [],
-            from: Array.isArray(replyEmail.to) ? replyEmail.to[0] : replyEmail.to,
-            subject: replyEmail.subject || '',
+            from: Array.isArray(replyEmail.to)
+              ? replyEmail.to[0]
+              : replyEmail.to,
+            subject: replyEmail.subject || "",
             messageId: replyEmail.message_id,
             originalHtml: replyEmail.html,
             originalText: replyEmail.text,
@@ -71,4 +73,3 @@ export default function InboxPage() {
     </>
   );
 }
-

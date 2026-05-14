@@ -1,66 +1,71 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { SettingsDialog } from '@/components/settings-dialog';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { ComposePanel } from '@/components/compose-panel';
-import { 
-  Inbox, 
-  Send, 
-  Plus,
-  Menu
-} from 'lucide-react';
-import { hasApiKey } from '@/lib/settings';
-import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { SettingsDialog } from "@/components/settings-dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ComposePanel } from "@/components/compose-panel";
+import { Inbox, Send, Plus, Menu } from "lucide-react";
+import { hasApiKey } from "@/lib/settings";
+import { useRouter, usePathname } from "next/navigation";
 
 interface EmailClientLayoutProps {
   children: React.ReactNode;
-  activeView: 'inbox' | 'sent' | 'compose';
-  onViewChange?: (view: 'inbox' | 'sent' | 'compose') => void;
+  activeView: "inbox" | "sent" | "compose";
+  onViewChange?: (view: "inbox" | "sent" | "compose") => void;
 }
 
-export function EmailClientLayout({ children, activeView, onViewChange }: EmailClientLayoutProps) {
+export function EmailClientLayout({
+  children,
+  activeView,
+  onViewChange,
+}: EmailClientLayoutProps) {
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
-  // Use typeof window check directly to avoid setState in effect
-  const mounted = typeof window !== 'undefined';
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const [composeOpen, setComposeOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   // Determine active view from pathname
-  const currentView = pathname === '/sent' ? 'sent' : pathname === '/inbox' ? 'inbox' : activeView;
-  
-  const handleNavigation = (view: 'inbox' | 'sent') => {
+  const currentView =
+    pathname === "/sent"
+      ? "sent"
+      : pathname === "/inbox"
+        ? "inbox"
+        : activeView;
+
+  const handleNavigation = (view: "inbox" | "sent") => {
     router.push(`/${view}`);
     onViewChange?.(view);
   };
-  
+
   const handleCompose = () => {
     setComposeOpen(true);
   };
 
   // Check API key on mount and when settings might change
   useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 0);
     const checkApiKey = () => {
       setApiKeyConfigured(hasApiKey());
     };
-    
+
     // Check immediately after mount
     checkApiKey();
-    
+
     // Listen for storage changes (when settings are updated in another tab)
-    window.addEventListener('storage', checkApiKey);
-    
+    window.addEventListener("storage", checkApiKey);
+
     // Listen for custom settings update event (when settings are updated in same tab)
-    window.addEventListener('settings-updated', checkApiKey);
-    
+    window.addEventListener("settings-updated", checkApiKey);
+
     return () => {
-      window.removeEventListener('storage', checkApiKey);
-      window.removeEventListener('settings-updated', checkApiKey);
+      clearTimeout(timer);
+      window.removeEventListener("storage", checkApiKey);
+      window.removeEventListener("settings-updated", checkApiKey);
     };
   }, []);
 
@@ -80,7 +85,8 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
           </div>
           {mounted && !apiKeyConfigured && (
             <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-2.5 text-xs text-yellow-800 dark:text-yellow-200">
-              <span className="font-medium">⚠️</span> Please configure your API key in settings
+              <span className="font-medium">⚠️</span> Please configure your API
+              key in settings
             </div>
           )}
         </div>
@@ -88,25 +94,25 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
         <ScrollArea className="flex-1">
           <nav className="p-3 space-y-1">
             <Button
-              variant={currentView === 'inbox' ? 'secondary' : 'ghost'}
+              variant={currentView === "inbox" ? "secondary" : "ghost"}
               className={`w-full justify-start transition-all ${
-                currentView === 'inbox' 
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' 
-                  : 'hover:bg-sidebar-accent/50'
+                currentView === "inbox"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "hover:bg-sidebar-accent/50"
               }`}
-              onClick={() => handleNavigation('inbox')}
+              onClick={() => handleNavigation("inbox")}
             >
               <Inbox className="mr-2 h-4 w-4" />
               Inbox
             </Button>
             <Button
-              variant={currentView === 'sent' ? 'secondary' : 'ghost'}
+              variant={currentView === "sent" ? "secondary" : "ghost"}
               className={`w-full justify-start transition-all ${
-                currentView === 'sent' 
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' 
-                  : 'hover:bg-sidebar-accent/50'
+                currentView === "sent"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "hover:bg-sidebar-accent/50"
               }`}
-              onClick={() => handleNavigation('sent')}
+              onClick={() => handleNavigation("sent")}
             >
               <Send className="mr-2 h-4 w-4" />
               Sent
@@ -169,21 +175,22 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
               </div>
               {mounted && !apiKeyConfigured && (
                 <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-2.5 text-xs text-yellow-800 dark:text-yellow-200">
-                  <span className="font-medium">⚠️</span> Please configure your API key in settings
+                  <span className="font-medium">⚠️</span> Please configure your
+                  API key in settings
                 </div>
               )}
             </div>
             <ScrollArea className="flex-1">
               <nav className="p-3 space-y-1">
                 <Button
-                  variant={currentView === 'inbox' ? 'secondary' : 'ghost'}
+                  variant={currentView === "inbox" ? "secondary" : "ghost"}
                   className={`w-full justify-start transition-all ${
-                    currentView === 'inbox' 
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' 
-                      : 'hover:bg-sidebar-accent/50'
+                    currentView === "inbox"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                      : "hover:bg-sidebar-accent/50"
                   }`}
                   onClick={() => {
-                    handleNavigation('inbox');
+                    handleNavigation("inbox");
                     setMobileMenuOpen(false);
                   }}
                 >
@@ -191,14 +198,14 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
                   Inbox
                 </Button>
                 <Button
-                  variant={currentView === 'sent' ? 'secondary' : 'ghost'}
+                  variant={currentView === "sent" ? "secondary" : "ghost"}
                   className={`w-full justify-start transition-all ${
-                    currentView === 'sent' 
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm' 
-                      : 'hover:bg-sidebar-accent/50'
+                    currentView === "sent"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                      : "hover:bg-sidebar-accent/50"
                   }`}
                   onClick={() => {
-                    handleNavigation('sent');
+                    handleNavigation("sent");
                     setMobileMenuOpen(false);
                   }}
                 >
@@ -224,16 +231,11 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {children}
-      </main>
-      
+      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+
       {/* Compose Panel - Global */}
-      <ComposePanel
-        open={composeOpen}
-        onOpenChange={setComposeOpen}
-      />
-      
+      <ComposePanel open={composeOpen} onOpenChange={setComposeOpen} />
+
       {/* Floating Compose Button */}
       <Button
         onClick={handleCompose}
@@ -255,4 +257,3 @@ export function EmailClientLayout({ children, activeView, onViewChange }: EmailC
     </div>
   );
 }
-

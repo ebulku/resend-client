@@ -4,9 +4,26 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, RefreshCw, Reply } from "lucide-react";
+import {
+  ArrowLeft,
+  RefreshCw,
+  Reply,
+  Paperclip,
+  DownloadIcon,
+} from "lucide-react";
 import { getSettings } from "@/lib/settings";
 import { apiCache } from "@/lib/cache";
+import { formatSize } from "@/lib/utils";
+
+interface Attachment {
+  id: string;
+  filename?: string;
+  name?: string;
+  content_type: string;
+  size: number;
+  content?: string; // base64
+  download_url?: string;
+}
 
 interface Email {
   id: string;
@@ -17,6 +34,8 @@ interface Email {
   status?: string;
   html?: string;
   text?: string;
+  attachments?: Attachment[];
+  folder?: "sent" | "received";
 }
 
 interface EmailDetailProps {
@@ -28,104 +47,217 @@ interface EmailDetailProps {
       originalText?: string;
       originalFrom?: string;
       originalDate?: string;
-    }
+    },
   ) => void;
+}
+
+function EmailContent({ html }: { html: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const updateHeight = () => {
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        try {
+          const body = iframe.contentWindow.document.body;
+          const docElement = iframe.contentWindow.document.documentElement;
+          const height = Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            docElement.clientHeight,
+            docElement.scrollHeight,
+            docElement.offsetHeight,
+          );
+          iframe.style.height = `${height}px`;
+        } catch {
+          // Cross-origin issues or other errors
+        }
+      }
+    };
+
+    // Initial update
+    const timeout = setTimeout(updateHeight, 100);
+
+    // Add load listener
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener("load", updateHeight);
+    }
+
+    return () => {
+      clearTimeout(timeout);
+      if (iframe) {
+        iframe.removeEventListener("load", updateHeight);
+      }
+    };
+  }, [html]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      srcDoc={`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                line-height: 1.5;
+                color: inherit;
+              }
+              img { max-width: 100%; height: auto; }
+              @media (prefers-color-scheme: dark) {
+                body { color: #e5e7eb; }
+              }
+            </style>
+          </head>
+          <body>${html}</body>
+        </html>
+      `}
+      className="w-full border-none overflow-hidden transition-all duration-200"
+      title="Email Content"
+      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+    />
+  );
 }
 
 export function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
   const [fullEmail, setFullEmail] = useState<Email | null>(email);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prevEmailId, setPrevEmailId] = useState<string | null>(null);
   const fetchingRef = useRef(false);
-  const currentEmailIdRef = useRef<string | null>(null);
 
-  const fetchEmailDetails = useCallback(async (emailId: string, forceRefresh = false) => {
-    // Prevent duplicate requests
-    if (fetchingRef.current && !forceRefresh) {
-      return;
-    }
+  const handleResult = useCallback(
+    (
+      result: { success: boolean; data: Email; error?: string },
+      cacheKey: string,
+    ) => {
+      if (result.success) {
+        console.log("Fetched email detail:", result.data);
+        setFullEmail(result.data);
+        apiCache.set(cacheKey, result.data, 300000);
+      } else {
+        setError(result.error || "Failed to fetch email details");
+        if (email) setFullEmail(email);
+      }
+    },
+    [email],
+  );
 
-    fetchingRef.current = true;
-    setLoading(true);
-    setError(null);
-
-    try {
-      const settings = getSettings();
-      if (!settings.apiKey) {
-        setError("Please configure your API key in settings");
-        setLoading(false);
-        fetchingRef.current = false;
+  const fetchEmailDetails = useCallback(
+    async (emailId: string, forceRefresh = false) => {
+      // Prevent duplicate requests
+      if (fetchingRef.current && !forceRefresh) {
         return;
       }
 
-      const cacheKey = `email-${emailId}-${settings.apiKey}`;
+      fetchingRef.current = true;
+      setLoading(true);
+      setError(null);
 
-      // Check cache first (unless force refresh)
-      if (!forceRefresh) {
-        const cached = apiCache.get<Email>(cacheKey);
-        if (cached) {
-          setFullEmail(cached);
+      try {
+        const settings = getSettings();
+        if (!settings.apiKey) {
+          setError("Please configure your API key in settings");
           setLoading(false);
           fetchingRef.current = false;
           return;
         }
-      }
 
-      // Determine if this is a received email or sent email
-      // We'll try received first, then fall back to sent
-      let response = await fetch(
-        `/api/emails/received/${emailId}?apiKey=${encodeURIComponent(
-          settings.apiKey
-        )}`
-      );
-      let result = await response.json();
+        const cacheKey = `email-${emailId}-${settings.apiKey}`;
 
-      // If received email fails, try sent email
-      if (!result.success) {
-        response = await fetch(
-          `/api/emails/${emailId}?apiKey=${encodeURIComponent(settings.apiKey)}`
-        );
-        result = await response.json();
-      }
-
-      if (result.success) {
-        setFullEmail(result.data);
-        // Cache for 5 minutes (email content doesn't change)
-        apiCache.set(cacheKey, result.data, 300000);
-      } else {
-        setError(result.error || "Failed to fetch email details");
-        // Fallback to the email from list if fetch fails
-        if (email) {
-          setFullEmail(email);
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+          const cached = apiCache.get<Email>(cacheKey);
+          if (cached) {
+            setFullEmail(cached);
+            setLoading(false);
+            fetchingRef.current = false;
+            return;
+          }
         }
+
+        // Use folder-specific endpoint if available, otherwise fall back to trying both
+        let response;
+        const folder = email?.folder;
+        if (folder === "received") {
+          response = await fetch(
+            `/api/emails/received/${emailId}?apiKey=${encodeURIComponent(
+              settings.apiKey,
+            )}`,
+          );
+        } else if (folder === "sent") {
+          response = await fetch(
+            `/api/emails/sent/${emailId}?apiKey=${encodeURIComponent(
+              settings.apiKey,
+            )}`,
+          );
+        } else {
+          // Fallback logic if folder is not specified
+          const responseFallback = await fetch(
+            `/api/emails/received/${emailId}?apiKey=${encodeURIComponent(
+              settings.apiKey,
+            )}`,
+          );
+          const resultFallback = await responseFallback.json();
+          if (resultFallback.success) {
+            handleResult(resultFallback, cacheKey);
+            return;
+          }
+
+          response = await fetch(
+            `/api/emails/sent/${emailId}?apiKey=${encodeURIComponent(
+              settings.apiKey,
+            )}`,
+          );
+          if (!response.ok) {
+            response = await fetch(
+              `/api/emails/${emailId}?apiKey=${encodeURIComponent(
+                settings.apiKey,
+              )}`,
+            );
+          }
+        }
+
+        if (response) {
+          const resultFinal = await response.json();
+          handleResult(resultFinal, cacheKey);
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "An error occurred";
+        setError(errorMessage);
+        if (email) setFullEmail(email);
+      } finally {
+        setLoading(false);
+        fetchingRef.current = false;
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An error occurred";
-      setError(errorMessage);
-      // Fallback to the email from list if fetch fails
-      if (email) {
-        setFullEmail(email);
-      }
-    } finally {
-      setLoading(false);
-      fetchingRef.current = false;
-    }
-  }, [email]);
-  
+    },
+    [email, handleResult],
+  );
+
+  // Reset state when email ID changes - handle in render to avoid race conditions and lint warnings
+  if (email && email.id !== prevEmailId) {
+    setPrevEmailId(email.id);
+    setFullEmail(email);
+    // The fetch will be triggered by the useEffect below
+  }
+
   useEffect(() => {
-    if (email && email.id !== currentEmailIdRef.current) {
-      currentEmailIdRef.current = email.id;
-      // Set initial email immediately
-      setFullEmail(email);
-      // Fetch full email details including content
-      fetchEmailDetails(email.id);
-    } else if (!email) {
-      currentEmailIdRef.current = null;
-      setFullEmail(null);
+    if (email && prevEmailId === email.id) {
+      const timer = setTimeout(() => fetchEmailDetails(email.id), 0);
+      return () => clearTimeout(timer);
+    } else if (!email && prevEmailId !== null) {
+      const timer = setTimeout(() => {
+        setPrevEmailId(null);
+        setFullEmail(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [email, email?.id, fetchEmailDetails]);
-
-
+  }, [email, prevEmailId, fetchEmailDetails]);
 
   if (!email) {
     return (
@@ -180,8 +312,18 @@ export function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
           </div>
         </div>
         <div className="flex items-center gap-1 md:gap-2 shrink-0">
-          {loading && (
+          {loading ? (
             <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => fetchEmailDetails(displayEmail.id, true)}
+              className="h-9 w-9"
+              title="Refresh email details"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           )}
           {displayEmail.status && (
             <div className="hidden md:block">
@@ -258,16 +400,70 @@ export function EmailDetail({ email, onBack, onReply }: EmailDetailProps) {
               <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="prose dark:prose-invert max-w-none">
-              {displayEmail.html ? (
-                <div dangerouslySetInnerHTML={{ __html: displayEmail.html }} />
-              ) : displayEmail.text ? (
-                <pre className="whitespace-pre-wrap font-sans">
-                  {displayEmail.text}
-                </pre>
-              ) : (
-                <p className="text-muted-foreground">(No content available)</p>
-              )}
+            <div className="space-y-6">
+              <div className="prose dark:prose-invert max-w-none">
+                {displayEmail.html ? (
+                  <EmailContent html={displayEmail.html} />
+                ) : displayEmail.text ? (
+                  <pre className="whitespace-pre-wrap font-sans text-sm md:text-base">
+                    {displayEmail.text}
+                  </pre>
+                ) : (
+                  <p className="text-muted-foreground">
+                    (No content available)
+                  </p>
+                )}
+              </div>
+
+              {displayEmail.attachments &&
+                displayEmail.attachments.length > 0 && (
+                  <div className="pt-6 border-t">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Paperclip className="h-4 w-4" />
+                      Attachments ({displayEmail.attachments.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {displayEmail.attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-9 w-9 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                              <Paperclip className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-medium truncate">
+                                {attachment.filename || attachment.name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatSize(attachment.size)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {attachment.download_url && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 transition-opacity"
+                              >
+                                <a
+                                  href={attachment.download_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="View attachment"
+                                >
+                                  <DownloadIcon className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
         </div>

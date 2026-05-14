@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required. Please configure it in settings." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
